@@ -1,0 +1,13 @@
+Package: methylModule
+Type: Package
+Title: Automated down stream processing of Illumina 450k methylation data
+Version: 0.1.1
+Date: 2013-12-19
+Author: Moiz Bootwalla
+Maintainer: Moiz Bootwalla <bootwall@usc.edu>
+Description: Data dichotomization, automated cluster assignment, Visualization
+Imports: Biobase, IRanges
+Depends: R (>= 3.0.0)
+Suggests: ggplot2, parallel, methylumi, FDb.InfiniumMethylation.hg19, GenomicFeatures, RUnit, BiocGenerics
+License: AGPL-3
+LazyLoad: yes

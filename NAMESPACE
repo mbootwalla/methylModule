@@ -1,0 +1,4 @@
+import(methods)
+import(IRanges)
+
+export(applyFilters)
