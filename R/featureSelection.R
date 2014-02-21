@@ -1,102 +1,51 @@
-getGlobalOverview <- function(x, index.T, index.N)
+selectFeatures <- function(T, N=NULL, disease, type="hyper")
 {
-	if(missing(x)) stop("No data provided \n")
+	if(missing(disease)) stop("Please provide a valid TCGA disease type\n")
+	if(missing(T)) stop("No data for tumor samples provided\n")
+	if(is.null(N)) {
+		data(TTmappings)
+		mappings <- mappings[which(map$diseaseabr == disease), ]
+		# TODO: Add in logic for checking tissue specific normals
+	}
 
-	if(!is(x, "matrix"))
-		stop("Expect a valid matrix of beta values as input \n")
+	if(!(type %in% c("hyper", "hypo"))) stop("Invalid feature type\n\n")
 
-	if(missing(index.T) || missing(index.N))
+	if(type == "hyper") {
+		T.hyper <- T[pickFeatures(N, type="hyper"), , drop=FALSE]
+		sd.hyper <- apply(T.hyper, 1, sd, na.rm=TRUE)
+		probes.hyper <- names(sd.hyper)[sd.hyper > quantile(sd.hyper, .80, na.rm=TRUE)]
+		set.seed(1234)
+		probes.hyper <- sample(probes.hyper, size=5000)
+		T.hyper <- T.hyper[probes.hyper, , drop=FALSE]
+		N.hyper <- N[probes.hyper, , drop=FALSE]
+		retval <- list("T.hyper"=T.hyper, "N.hyper"=N.hyper)
+		return(retval)
+	}
+
+	if(type == "hypo") {
+		T.hypo <- T[pickFeatures(N, type="hypo"), , drop=FALSE]
+		sd.hypo <- apply(T.hypo, 1, sd, na.rm=TRUE)
+		probes.hypo <- names(sd.hypo)[sd.hypo > quantile(sd.hypo, .80, na.rm=TRUE)]
+		set.seed(1234)
+		probes.hypo <- sample(probes.hypo, size=5000)
+		T.hypo <- T.hypo[probes.hypo, , drop=FALSE]
+		N.hypo <- N[probes.hypo, , drop=FALSE]
+		retval <- list("T.hypo"=T.hypo, "N.hypo"=N.hypo)
+		return(retval)
+	}
+}
+
+pickFeatures <- function(x, type="hyper")
+{
+	medianN <- apply(x, 1, median, na.rm = T)
+	if(type=="hyper")
 	{
-		warning("Index of tumor or normal samples not provided. Inferring from sample names \n")
-		designation <- rep("TUMOR", dim(x)[[2]])
-		designation[which(substr(dimnames(x)[[2]], 14, 15) == "11")] <- "NORMAL"
-		designation[which(substr(dimnames(x)[[2]], 14, 15) == "20")] <- "CONTROL"
-		cat("\n", "Table of number of Tumor, Normal and Control Samples found", "\n\n")
-		print(table(designation))
-		index.T <- which(designation == "TUMOR")
-		index.N <- which(designation == "NORMAL")
+		probes.hyper <- names(subset(medianN, medianN < 0.2))
+		return(probes.hyper)
+	} else
+	{
+		probes.hypo <- names(subset(medianN, medianN > 0.7))
+		return(probes.hypo)
 	}
-
-	tumorSD <- apply(x[, index.T], 1, sd, na.rm=TRUE)
-	clusterProbes <- names(tumorSD)[tumorSD > quantile(tumorSD, .95, na.rm=TRUE)]
-	clusterProbes <- sample(clusterProbes, size=as.integer(length(clusterProbes)/5))
-
-	#Clustering
-	d.tumor.sample <- dist(t(x[clusterProbes, index.T]), method="euclidean")
-	cluster.tumor.sample <- hclust(d.tumor.sample, method="ward")
-	d.tumor.probe <- dist(x[clusterProbes, index.T], method="euclidean")
-	cluster.tumor.probe <- hclust(d.tumor.probe, method="ward")
-
-	d.normal.sample <- dist(t(x[clusterProbes, index.N]), method="euclidean")
-	cluster.normal.sample <- hclust(d.normal.sample, method="ward")
-	d.normal.probe <- dist(x[clusterProbes, index.N], method="euclidean")
-	cluster.normal.probe <- hclust(d.normal.probe, method="ward")
-
-	datT.clustered <- x[clusterProbes[cluster.tumor.probe$order], index.T[cluster.tumor.sample$order], drop=FALSE]
-	datN.clustered <- x[clusterProbes[cluster.normal.probe$order], index.N[cluster.normal.sample$order], drop=FALSE]
-
-	
 }
 
-TNplot <- function(x, disease, palette="jet")
-{
-	require("matlab")
-	def.par <- par(no.readonly=TRUE)
-	
-	if(!is(x, "SimpleList")){
-		stop("Data should be a SimpleList object \n")
-	}
-	if(missing(disease)){
-		stop("Please provide the name of the Tumor type being visualized \n")
-	}
-
-	datT <- x$CLUSTER$Tumor.Clustered
-	datN <- x$CLUSTER$Normal.Clustered
-	fit.sample <- x$FIT$Fit.Sample
-
-	# Restrict total no. of data points to 1 million for plotting purposes
-	#n <- ceiling(1000000 / ncol(datT))
-	#if(nrow(datT) > n){
-#		datT <- datT[sample(rownames(datT), n), , drop=FALSE]
-#		datN <- datN[rownames(datT), , drop=FALSE]
-#	}
-
-	if(match.arg(palette) == "jet"){
-		colors <- jet.colors(100)
-	} else {
-		colors <- palette
-	}
-
-	#par(mar = c(5, 2, 0, 3))
-	#layout(matrix(c(4,3,2,1), nrow=2, ncol=2, byrow=T), widths=c(1.5,4), heights=c(1.5,4))
-	par(mar = c(5, 0.5, 2, 3))
-	layout(matrix(c(5,0,4,3,2,1), nrow=2, ncol=3, byrow=T), widths=c(1.5,0.25,3.75), heights=c(1.5,4))
-	image(1:ncol(datT), 1:nrow(datT), t(datT), axes=F, col=colors, xlab="", ylab="")
-	box()
-	axis(side=1, at=1:ncol(datT), labels=substr(colnames(datT), 6, 12), tick=FALSE, las=3, cex.axis=0.75)
-	#title(paste("Global overview of Methylation of", disease, "data", sep=" "))
-	mtext(paste(ncol(datT), disease, "Tumor Samples", sep=" "), side=3, line=1, cex=1.0)
-	par(mar = c(5,1.5,2,0))
-	image(t(cgi2), col=c("white", "black"), axes=F)
-	#mtext(paste(ncol(datT), disease, "Tumor Samples", sep=" "), side=1, line=1)
-	mtext(paste(nrow(datT), "Probes", sep=" "), side=2, line=1)
-	par(mar = c(5,2,2,5))
-	image(1:ncol(datN), 1:nrow(datN), t(datN), axes=F, col=colors, xlab="", ylab="")
-	box()
-	mtext(paste(ncol(datN), "Normals", sep=" "), side=3, line=1)
-	par(mar = c(2, 0.5, 0, 3))
-	plot(as.dendrogram(fit.sample), axes=F, xaxs="i", leaflab="none")
-	par(mar=c(7,2,5,5), cex=0.75)
-	colorstrip(colors, description=expression(paste(beta, " value 0 -> 1", sep="")))
-	par(def.par)
-}
-
-
-colorstrip <- function(colors, description)
-{
-	count <- length(colors)
-	m <- matrix(1:count, count, 1)
-	image(m, col=colors, ylab="", axes=FALSE)
-	box()
-	mtext(description, 1, adj=0.5, line=0.5)
-}
