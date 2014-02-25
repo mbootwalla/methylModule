@@ -1,4 +1,4 @@
 import(methods)
 import(IRanges)
 
-export(applyFilters, getGlobalOverview, TNplot, colorstrip, getDichotomizedOverview, selectFeatures, clusterData, clusterConsensus, inferSampleType)
+export(applyFilters, getGlobalOverview, TNplot, getHypomethylatedOverview, getHypermethylatedOverview, selectFeatures, clusterData, clusterConsensus, inferSampleType)
