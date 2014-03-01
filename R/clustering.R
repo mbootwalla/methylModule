@@ -11,14 +11,15 @@ clusterData <- function(x, dist.method="binary", hclust.method="ward")
 	return(retval)
 }
 
-clusterConsensus <- function(x, alg="pam", dist.method="euclidean", type="png", outdir="ConsensusClusterResults")
+clusterConsensus <- function(x, alg="pam", dist.method="euclidean", type="pdf", view="Global", outdir="ConsensusClusterResults")
 {
-	require('ConsensusClusterPlus')
-	require('cluster')
+	suppressPackageStartupMessages(require('ConsensusClusterPlus'))
+	suppressPackageStartupMessages(require('cluster'))
 	#alg <- match.arg(alg)
 	#dist.method <- match.arg(dist.method)
-	title <- file.path(getwd(), outdir)
-	return(ConsensusClusterPlus(x, maxk=7, clusterAlg=alg, distance=dist.method,
+	title <- paste(gsub("-","", Sys.Date()), view, outdir, sep="_")
+	result <- ConsensusClusterPlus(x, maxK=7, clusterAlg=alg, distance=dist.method,
 				    plot=type, seed=1234, reps=1000, writeTable=TRUE,
-				    title=title))
+				    title=title)
+	return(result)
 }

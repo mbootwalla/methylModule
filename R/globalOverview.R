@@ -1,4 +1,4 @@
-getGlobalOverview <- function(x, disease, index.T, index.N, outdir=".", type="pdf")
+getGlobalOverview <- function(x, disease, index.T, index.N, outdir=".")
 {
 	if(missing(x)) stop("No data provided \n")
 
@@ -22,12 +22,15 @@ getGlobalOverview <- function(x, disease, index.T, index.N, outdir=".", type="pd
 	set.seed(12345)
 	clusterProbes <- sample(clusterProbes, size=5000)
 
-	#Clustering
-	cluster.tumor <- clusterData(x[clusterProbes, index.T, drop=FALSE], dist.method="euclidean")
-	cluster.normal <- clusterData(x[clusterProbes, index.N, drop=FALSE], dist.method="euclidean")
+	betaT <- x[clusterProbes, index.T, drop=FALSE]
+	betaN <- x[clusterProbes, index.N, drop=FALSE]
 	
-	betaT.clustered <- x[clusterProbes[cluster.tumor$fit.probe$order], index.T[cluster.tumor$fit.sample$order], drop=FALSE]
-	betaN.clustered <- x[clusterProbes[cluster.tumor$fit.probe$order], index.N[cluster.normal$fit.sample$order], drop=FALSE]
+	#Clustering
+	cluster.tumor <- clusterData(betaT, dist.method="euclidean")
+	cluster.normal <- clusterData(betaN, dist.method="euclidean")
+	
+	betaT.clustered <- betaT[cluster.tumor$fit.probe$order, cluster.tumor$fit.sample$order, drop=FALSE]
+	betaN.clustered <- betaN[cluster.tumor$fit.probe$order, cluster.normal$fit.sample$order, drop=FALSE]
 
 	retval <- SimpleList()
 	retval$CLUSTER <- SimpleList("Tumor.Clustered" = betaT.clustered, "Normal.Clustered" = betaN.clustered)
@@ -38,15 +41,35 @@ getGlobalOverview <- function(x, disease, index.T, index.N, outdir=".", type="pd
 
 	save(retval, file=file.path(outdir, paste(gsub("-","", Sys.Date()), paste(disease, "clustering", "output", "rda", sep="."), sep="_")))
 
-	# Open a device if type is specified
-	if(type=="pdf")
-	{
-		pdf(file=file.path(outdir, paste(disease, "global", "overview", "pdf", sep=".")))
-		TNplot(retval, type="Global", disease=disease)
-		dev.off()
-	} else
-	{
-		TNplot(retval, disease=disease)
-	}
+	#cluster assessment using ConsensusClusterPlus
+	message("\nPerforming Consensus Clustering\n\n")
+	#consensusT <- clusterConsensus(betaT, view="Global")
+	title <- file.path(".", paste(gsub("-","", Sys.Date()), "Global", "ConsensusClusterResults", sep="_"))
+	consensusT <- ConsensusClusterPlus(betaT, maxK=7, clusterAlg="pam", distance="euclidean",
+					   plot="pdf", seed=1234, reps=1000, writeTable=TRUE,
+					   title=title)
+	consensus <- consensusT[[1]]
+	colnames(consensus) <- colnames(betaT)
+
+	# Write out a table containing the sample cluster number for each k
+	consensus.table <- sampleConsensusTable(consensusT)
+	write.table(consensus.table,
+		    file=file.path(outdir, paste(gsub("-","", Sys.Date()),
+		    paste(disease, "global", "sample", "consensus", "table", "txt", sep="."), sep="_")),
+		    sep="\t", quote=FALSE)
+	
+	# generate low res png file
+	message("\nGenerating low resolution image of Global Overview\n\n")
+	png(height=640, width=480, file=file.path(outdir, paste(gsub("-","", Sys.Date()),
+	    paste(disease, "global", "overview", "lowres", "png", sep="."), sep="_")), res=72)
+	TNplot(retval, consensus=consensus, view="Global", disease=disease)
+	dev.off()
+	
+	# generate high res pdf file
+	message("\nGenerating high resolution image of Global Overview\n\n")
+	pdf(file=file.path(outdir, paste(gsub("-","", Sys.Date()),
+	    paste(disease, "global", "overview", "highres", "pdf", sep="."), sep="_")))
+	TNplot(retval, consensus=consensus, view="Global", disease=disease)
+	dev.off()
 }
 

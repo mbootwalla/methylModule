@@ -18,39 +18,61 @@ getHypermethylatedOverview <- function(x, disease, index.T, index.N, outdir=".")
 	betaT.raw <- x[, index.T, drop=FALSE]
 	betaN.raw <- x[, index.N, drop=FALSE]
 
-	beta.hyper <- selectFeatures(T=betaT.raw, N=betaN.raw, disease=disease, type="hyper")
+	beta <- selectFeatures(T=betaT.raw, N=betaN.raw, disease=disease, type="hyper")
 
-	betaT.hyper <- beta.hyper$T.hyper
-	betaN.hyper <- beta.hyper$N.hyper
+	betaT <- beta$T.hyper
+	betaN <- beta$N.hyper
 
-	betaT.dichot.hyper <- betaT.hyper > 0.3
-	storage.mode(betaT.dichot.hyper) <- "numeric"
-	betaN.dichot.hyper <- betaN.hyper > 0.3
-	storage.mode(betaN.dichot.hyper) <- "numeric"
+	betaT.dichot <- betaT > 0.3
+	storage.mode(betaT.dichot) <- "numeric"
+	betaN.dichot <- betaN > 0.3
+	storage.mode(betaN.dichot) <- "numeric"
 
 	# clustering using ward's method on the jaccard distance
-	cluster.tumor.hyper <- clusterData(betaT.dichot.hyper)
-	cluster.normal.hyper <- clusterData(betaN.dichot.hyper)
+	cluster.tumor <- clusterData(betaT.dichot)
+	cluster.normal <- clusterData(betaN.dichot)
 
-	betaT.clustered.hyper <- betaT.hyper[cluster.tumor.hyper$fit.probe$order, cluster.tumor.hyper$fit.sample$order, drop=FALSE]
-	betaN.clustered.hyper <- betaN.hyper[cluster.tumor.hyper$fit.probe$order, cluster.normal.hyper$fit.sample$order, drop=FALSE]
+	betaT.clustered <- betaT[cluster.tumor$fit.probe$order, cluster.tumor$fit.sample$order, drop=FALSE]
+	betaN.clustered <- betaN[cluster.tumor$fit.probe$order, cluster.normal$fit.sample$order, drop=FALSE]
 
-	retval.hyper <- SimpleList()
-	retval.hyper$CLUSTER <- SimpleList("Tumor.Clustered" = betaT.clustered.hyper, "Normal.Clustered" = betaN.clustered.hyper)
-	retval.hyper$FIT <- SimpleList("Fit.Tumor.Sample" = cluster.tumor.hyper$fit.sample, "Fit.Tumor.Probe" = cluster.tumor.hyper$fit.probe,
-				       "Fit.Normal.Sample" = cluster.normal.hyper$fit.sample, "Fit.Normal.Probe" = cluster.normal.hyper$fit.probe)				 
-	retval.hyper$DIST <- SimpleList("Dist.Tumor.Sample" = cluster.tumor.hyper$d.sample, "Dist.Tumor.Probe" = cluster.tumor.hyper$d.probe,
-					"Dist.Normal.Sample" = cluster.normal.hyper$d.sample, "Dist.Normal.Probe" = cluster.normal.hyper$d.probe)
+	retval <- SimpleList()
+	retval$CLUSTER <- SimpleList("Tumor.Clustered" = betaT.clustered, "Normal.Clustered" = betaN.clustered)
+	retval$FIT <- SimpleList("Fit.Tumor.Sample" = cluster.tumor$fit.sample, "Fit.Tumor.Probe" = cluster.tumor$fit.probe,
+				       "Fit.Normal.Sample" = cluster.normal$fit.sample, "Fit.Normal.Probe" = cluster.normal$fit.probe)				 
+	retval$DIST <- SimpleList("Dist.Tumor.Sample" = cluster.tumor$d.sample, "Dist.Tumor.Probe" = cluster.tumor$d.probe,
+					"Dist.Normal.Sample" = cluster.normal$d.sample, "Dist.Normal.Probe" = cluster.normal$d.probe)
 
-	save(retval.hyper, file=file.path(outdir, paste(gsub("-","", Sys.Date()),
+	save(retval, file=file.path(outdir, paste(gsub("-","", Sys.Date()),
 			   paste(disease, "dichotomized", "hypermethylated", "clustering", "output", "rda", sep="."), sep="_")))
 
+	# cluster assessment using ConsensusClusterPlus
+	message("\nPerforming Consensus Clustering\n\n")
+	#consensusT <- clusterConsensus(betaT.dichot, view="Hypermethylated")
+	title <- file.path(".", paste(gsub("-","", Sys.Date()), "Hypermethylated", "ConsensusClusterResults", sep="_"))
+	consensusT <- ConsensusClusterPlus(betaT.dichot, maxK=7, clusterAlg="pam", distance="euclidean",
+					   plot="pdf", seed=1234, reps=1000, writeTable=TRUE,
+					   title=title)
+	consensus <- consensusT[[1]]
+	colnames(consensus) <- colnames(betaT.dichot)
+
+	# Write out a table containing the sample cluster number for each k
+	consensus.table <- sampleConsensusTable(consensusT)
+	write.table(consensus.table,
+		    file=file.path(outdir, paste(gsub("-","", Sys.Date()),
+		    paste(disease, "dichotomized", "hypermethylated", "sample", "consensus", "table", "txt", sep="."), sep="_")),
+		    sep="\t", quote=FALSE)
+	
 	# generate low res png file
-	png(file=file.path(outdir, paste(disease, "dichotomized", "hypermethylated", "overview", "lowres", "png", sep=".")), res=72)
-	TNplot(retval.hypo, type="Hypermethylated", disease=disease)
+	message("\nGenerating low resolution image of Hypermethylated Overview\n\n")
+	png(height=640, width=480, file=file.path(outdir, paste(gsub("-","", Sys.Date()),
+	    paste(disease, "dichotomized", "hypermethylated", "overview", "lowres", "png", sep="."), sep="_")), res=72)
+	TNplot(retval, consensus=consensus, view="Hypermethylated", disease=disease)
 	dev.off()
+	
 	# generate high res pdf file
-	pdf(file=file.path(outdir, paste(disease, "dichotomized", "hypermethylated", "overview", "highres", "pdf", sep=".")))
-	TNplot(retval.hyper, type="Hypermethylated", disease=disease)
+	message("\nGenerating high resolution image of Hypermethylated Overview\n\n")
+	pdf(file=file.path(outdir, paste(gsub("-","", Sys.Date()),
+	    paste(disease, "dichotomized", "hypermethylated", "overview", "highres", "pdf", sep="."), sep="_")))
+	TNplot(retval, consensus=consensus, view="Hypermethylated", disease=disease)
 	dev.off()
 }
