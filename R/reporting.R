@@ -6,7 +6,7 @@ sampleConsensusTable <- function(consensus)
 	df <- do.call(rbind, lapply(consensus[-1],
 					function(x){
 						with(x, consensusClass)}))
-	rownames(df) <- paste("k", 1:nrow(df), sep="=")
+	rownames(df) <- paste("k", 2:(nrow(df) + 1), sep="=")
 	retval <- data.frame("SampleName"=colnames(df), stringsAsFactors=FALSE)
 	retval <- cbind(retval, t(df))
 	rownames(retval) <- NULL
@@ -25,6 +25,7 @@ generateReport <- function(disease, outdir=".")
 
 	# Setup the Report
 	report <- newReport("Clustering of Methylation Data")
+	report <- setReportSubTitle(report, "Esophageal Carcinoma (Primary Solid Tumor)")
 	report <- setCollectionDate(report, format(Sys.Date(), "%d %b %Y"))
 
 	# Add the Introduction
