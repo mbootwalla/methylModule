@@ -60,7 +60,7 @@ getHypermethylatedOverview <- function(x, disease, index.T, index.N, outdir=".")
 	write.table(consensus.table,
 		    file=file.path(outdir, paste(gsub("-","", Sys.Date()),
 		    paste(disease, "dichotomized", "hypermethylated", "sample", "consensus", "table", "txt", sep="."), sep="_")),
-		    sep="\t", quote=FALSE)
+		    sep="\t", quote=FALSE, row.names=FALSE)
 	
 	# generate low res png file
 	message("\nGenerating low resolution image of Hypermethylated Overview\n\n")

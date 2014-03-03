@@ -1,8 +1,8 @@
 Package: methylModule
 Type: Package
 Title: Automated down stream processing of Illumina 450k methylation data
-Version: 0.1.4
-Date: 2014-02-28
+Version: 0.1.5
+Date: 2014-03-03
 Author: Moiz Bootwalla
 Maintainer: Moiz Bootwalla <bootwall@usc.edu>
 Description: Data dichotomization, automated cluster assignment, Visualization
