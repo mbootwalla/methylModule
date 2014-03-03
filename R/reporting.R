@@ -86,8 +86,11 @@ generateReport <- function(disease, outdir=".")
 			     "Heatmap visualizing both Normal and Tumor samples. For a detailed explanation of the figure refer to the Methods and Data section")
 
 	tableData1 <- read.table(grep("global", tables, value=T), stringsAsFactors=F, header=T)[1:5, ]
+	colnames(tableData1) <- gsub(".", "=", colnames(tableData1), fixed=TRUE)
 	tableData2 <- read.table(grep("hypo", tables, value=T), stringsAsFactors=F, header=T)[1:5, ]
+	colnames(tableData2) <- gsub(".", "=", colnames(tableData2), fixed=TRUE)
 	tableData3 <- read.table(grep("hyper", tables, value=T), stringsAsFactors=F, header=T)[1:5, ]
+	colnames(tableData3) <- gsub(".", "=", colnames(tableData3), fixed=TRUE)
 
 	table1 <- newTable(tableData1, file=grep("global", tables, value=T), exportId="TABLE_1",
 			   "Table containing Sample cluster membership for different k from k=2 to k=7 from consensus clustering")
